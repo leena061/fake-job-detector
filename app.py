@@ -41,7 +41,7 @@ def get_red_flags(title, company_profile, description, requirements,
     found_keywords = []
     for kw in FRAUD_KEYWORDS:
         if kw in combined_lower:
-            found_keywords.append(f"Suspicious phrase detected: \"{kw}\"")
+            found_keywords.append(f'Suspicious phrase detected: \"{kw}\"')
     reasons.extend(found_keywords[:2])
 
     return reasons[:3]
@@ -58,19 +58,25 @@ def predict(title, company_profile, description, requirements,
     X_num   = csr_matrix([[has_logo, has_questions, text_length, has_salary, has_company]])
     X_new   = hstack([X_text, X_num])
 
-    fraud_prob  = xgb_model.predict_proba(X_new)[0][1]
+    fraud_prob = xgb_model.predict_proba(X_new)[0][1]
 
     if fraud_prob < 0.35:
         risk_label = "Low Risk"
-        color      = "#1D9E75"
+        color      = "#00C896"
+        bg_color   = "rgba(0, 200, 150, 0.1)"
+        border     = "rgba(0, 200, 150, 0.4)"
         icon       = "✅"
     elif fraud_prob < 0.65:
         risk_label = "Medium Risk"
-        color      = "#F5A623"
+        color      = "#FFB347"
+        bg_color   = "rgba(255, 179, 71, 0.1)"
+        border     = "rgba(255, 179, 71, 0.4)"
         icon       = "⚠️"
     else:
         risk_label = "High Risk"
-        color      = "#E24B4A"
+        color      = "#FF5C5C"
+        bg_color   = "rgba(255, 92, 92, 0.1)"
+        border     = "rgba(255, 92, 92, 0.4)"
         icon       = "🚨"
 
     reasons = get_red_flags(
@@ -78,7 +84,7 @@ def predict(title, company_profile, description, requirements,
         has_logo, has_questions, salary, text_length
     )
 
-    return round(float(fraud_prob), 3), risk_label, color, icon, reasons
+    return round(float(fraud_prob), 3), risk_label, color, bg_color, border, icon, reasons
 
 
 # ── Page config ──────────────────────────────────────────────
@@ -91,123 +97,170 @@ st.set_page_config(
 # ── Custom CSS ───────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Force light background */
-    .stApp { background-color: #F8F9FB; }
+    /* ── Reset & base ── */
+    .stApp { font-family: 'Inter', sans-serif; }
 
-    /* Header */
+    /* ── Header ── */
     .header-box {
-        background: linear-gradient(135deg, #1D3557 0%, #457B9D 100%);
-        padding: 2rem 2rem 1.5rem 2rem;
+        padding: 2.5rem 2rem 2rem 2rem;
         border-radius: 16px;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.8rem;
         text-align: center;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.1) 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    .header-box::before {
+        content: "";
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 180px; height: 180px;
+        border-radius: 50%;
+        background: rgba(99,102,241,0.08);
+    }
+    .header-tag {
+        display: inline-block;
+        background: rgba(99,102,241,0.2);
+        color: #A5B4FC;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(99,102,241,0.35);
+        margin-bottom: 0.8rem;
     }
     .header-box h1 {
-        color: white !important;
         font-size: 2rem !important;
-        margin: 0 !important;
         font-weight: 700 !important;
+        margin: 0 0 0.4rem 0 !important;
+        letter-spacing: -0.02em;
     }
     .header-box p {
-        color: #A8D8EA !important;
-        margin: 0.4rem 0 0 0 !important;
-        font-size: 1rem !important;
+        font-size: 0.9rem !important;
+        opacity: 0.6;
+        margin: 0 !important;
     }
 
-    /* Card */
-    .card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        margin-bottom: 1.2rem;
+    /* ── Section label ── */
+    .section-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        opacity: 0.45;
+        margin-bottom: 0.6rem;
     }
 
-    /* Result box */
+    /* ── Sample buttons ── */
+    .stButton > button {
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s !important;
+        padding: 0.5rem 1.2rem !important;
+    }
+
+    /* ── Analyse button ── */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+        color: white !important;
+        border: none !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.01em !important;
+        padding: 0.65rem 2rem !important;
+        box-shadow: 0 4px 15px rgba(99,102,241,0.35) !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 6px 20px rgba(99,102,241,0.5) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* ── Result box ── */
     .result-box {
-        border-radius: 12px;
-        padding: 1.5rem;
+        border-radius: 16px;
+        padding: 2rem;
         margin-top: 1rem;
         text-align: center;
     }
-    .result-score {
-        font-size: 3rem;
+    .result-pct {
+        font-size: 3.5rem;
         font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
         margin: 0;
     }
     .result-label {
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         font-weight: 600;
-        margin: 0.2rem 0 0 0;
+        margin: 0.4rem 0 0 0;
+        opacity: 0.85;
+    }
+    .result-sub {
+        font-size: 0.8rem;
+        opacity: 0.5;
+        margin-top: 0.3rem;
     }
 
-    /* Red flag item */
+    /* ── Flag items ── */
     .flag-item {
-        background: #FFF3F3;
-        border-left: 4px solid #E24B4A;
-        border-radius: 0 8px 8px 0;
-        padding: 0.6rem 1rem;
+        border-radius: 10px;
+        padding: 0.7rem 1rem;
         margin-bottom: 0.5rem;
-        color: #333;
-        font-size: 0.95rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255, 92, 92, 0.08);
+        border: 1px solid rgba(255, 92, 92, 0.2);
     }
-
-    /* Clean flag item */
     .clean-item {
-        background: #F0FBF6;
-        border-left: 4px solid #1D9E75;
-        border-radius: 0 8px 8px 0;
-        padding: 0.6rem 1rem;
-        color: #333;
-        font-size: 0.95rem;
+        border-radius: 10px;
+        padding: 0.7rem 1rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(0, 200, 150, 0.08);
+        border: 1px solid rgba(0, 200, 150, 0.2);
     }
 
-    /* Sample buttons */
-    .stButton > button {
-        border-radius: 8px !important;
-        font-weight: 500 !important;
-        border: 1.5px solid #1D3557 !important;
-        color: #1D3557 !important;
-        background: white !important;
-        transition: all 0.2s !important;
+    /* ── Progress meter ── */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #6366F1, #8B5CF6, #EC4899) !important;
+        border-radius: 999px !important;
     }
-    .stButton > button:hover {
-        background: #1D3557 !important;
-        color: white !important;
+    .stProgress > div > div > div {
+        border-radius: 999px !important;
+        height: 8px !important;
     }
 
-    /* Analyse button */
-    .stButton > button[kind="primary"] {
-        background: #1D3557 !important;
-        color: white !important;
-        border: none !important;
-        padding: 0.6rem 2rem !important;
-        font-size: 1rem !important;
-    }
+    /* ── Divider ── */
+    hr { opacity: 0.15 !important; }
 
-    /* Input labels */
-    label { color: #1D3557 !important; font-weight: 500 !important; }
-
-    /* Hide streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* ── Hide Streamlit branding ── */
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Header ───────────────────────────────────────────────────
 st.markdown("""
 <div class="header-box">
+    <div class="header-tag">AI-Powered Detection</div>
     <h1>🕵️ Fake Job Listing Detector</h1>
-    <p>Powered by XGBoost · Trained on 17,880 real-world job postings</p>
+    <p>Powered by XGBoost &nbsp;·&nbsp; Trained on 17,880 real-world job postings</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ── Sample buttons ───────────────────────────────────────────
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("**Try a sample listing:**")
+st.markdown('<p class="section-label">Try a sample listing</p>', unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 
-if col1.button("🚨 Try a Fake Listing"):
+if col1.button("🚨 Try a Fake Listing", use_container_width=True):
     st.session_state["title"]        = "Work From Home Data Entry - Earn $500/day"
     st.session_state["company"]      = ""
     st.session_state["description"]  = "Easy work from home. No experience needed. Apply now. Immediate joining. Weekly payment via wire transfer. Limited seats available."
@@ -216,7 +269,7 @@ if col1.button("🚨 Try a Fake Listing"):
     st.session_state["logo"]         = False
     st.session_state["questions"]    = False
 
-if col2.button("✅ Try a Real Listing"):
+if col2.button("✅ Try a Real Listing", use_container_width=True):
     st.session_state["title"]        = "Senior Software Engineer - Backend Python"
     st.session_state["company"]      = "Fintech startup based in Bangalore, Series B funded, 200+ employees."
     st.session_state["description"]  = "Looking for backend engineer with 3+ years in Python, FastAPI, PostgreSQL. You will design microservices for our payments platform."
@@ -225,22 +278,22 @@ if col2.button("✅ Try a Real Listing"):
     st.session_state["logo"]         = True
     st.session_state["questions"]    = True
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Input form ───────────────────────────────────────────────
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("**📋 Job Listing Details**")
+st.markdown('<p class="section-label">📋 Job Listing Details</p>', unsafe_allow_html=True)
 
-title        = st.text_input("Job Title",       value=st.session_state.get("title", ""), placeholder="e.g. Software Engineer - Backend")
-company      = st.text_area("Company Profile",  value=st.session_state.get("company", ""), height=80,  placeholder="Describe the company...")
-description  = st.text_area("Job Description",  value=st.session_state.get("description", ""), height=120, placeholder="Paste the job description here...")
-requirements = st.text_area("Requirements",     value=st.session_state.get("requirements", ""), height=80, placeholder="Skills and qualifications required...")
-salary       = st.text_input("Salary Range",    value=st.session_state.get("salary", ""), placeholder="e.g. 10-15 LPA or $60,000/year")
+title        = st.text_input("Job Title",        value=st.session_state.get("title", ""),        placeholder="e.g. Software Engineer - Backend")
+company      = st.text_area("Company Profile",   value=st.session_state.get("company", ""),      height=90,  placeholder="Describe the company...")
+description  = st.text_area("Job Description",   value=st.session_state.get("description", ""),  height=130, placeholder="Paste the job description here...")
+requirements = st.text_area("Requirements",      value=st.session_state.get("requirements", ""), height=90,  placeholder="Skills and qualifications required...")
+salary       = st.text_input("Salary Range",     value=st.session_state.get("salary", ""),       placeholder="e.g. 10-15 LPA or $60,000/year")
 
-col3, col4   = st.columns(2)
-has_logo     = col3.checkbox("Has Company Logo",        value=st.session_state.get("logo", False))
-has_ques     = col4.checkbox("Has Screening Questions", value=st.session_state.get("questions", False))
-st.markdown('</div>', unsafe_allow_html=True)
+col3, col4 = st.columns(2)
+has_logo   = col3.checkbox("Has Company Logo",        value=st.session_state.get("logo", False))
+has_ques   = col4.checkbox("Has Screening Questions", value=st.session_state.get("questions", False))
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Analyse button ───────────────────────────────────────────
 col_btn = st.columns([1, 2, 1])
@@ -253,29 +306,29 @@ if analyse:
         st.warning("Please enter at least a job title and description.")
     else:
         with st.spinner("Analysing listing..."):
-            prob, risk, color, icon, reasons = predict(
+            prob, risk, color, bg_color, border, icon, reasons = predict(
                 title, company, description, requirements,
                 int(has_logo), int(has_ques), salary
             )
 
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(f"""
-        <div class="result-box" style="background:{color}18; border: 2px solid {color};">
-            <p class="result-score" style="color:{color};">{icon} {prob*100:.1f}%</p>
-            <p class="result-label" style="color:{color};">{risk}</p>
-            <p style="color:#666; font-size:0.9rem; margin-top:0.5rem;">Fraud Probability Score</p>
+        <div class="result-box" style="background:{bg_color}; border: 1px solid {border};">
+            <p class="result-pct" style="color:{color};">{prob*100:.1f}%</p>
+            <p class="result-label" style="color:{color};">{icon} {risk}</p>
+            <p class="result-sub">Fraud Probability Score</p>
         </div>
         """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("**Fraud Risk Meter**")
+        st.progress(prob)
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
         if reasons:
-            st.markdown("**⚠️ Red Flags Detected:**")
+            st.markdown('<p class="section-label">Red Flags Detected</p>', unsafe_allow_html=True)
             for r in reasons:
                 st.markdown(f'<div class="flag-item">⚑ {r}</div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="clean-item">✅ No major red flags detected in this listing</div>', unsafe_allow_html=True)
-
-        # Meter
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Fraud Risk Meter:**")
-        st.progress(prob)
+            st.markdown('<div class="clean-item">✅ No major red flags detected in this listing</div>', unsafe_allow_html=True)

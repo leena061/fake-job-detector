@@ -2,17 +2,52 @@
 import streamlit as st
 import joblib
 import numpy as np
+import re
 from scipy.sparse import hstack, csr_matrix
 
 xgb_model     = joblib.load("model/xgb_model.pkl")
 tfidf         = joblib.load("model/tfidf_vectorizer.pkl")
 feature_names = joblib.load("model/feature_names.pkl")
-explainer     = joblib.load("model/shap_explainer.pkl")
 
 numeric_features = [
     "has_company_logo", "has_questions",
     "text_length", "has_salary", "has_company_profile"
 ]
+
+FRAUD_KEYWORDS = [
+    "wire transfer", "western union", "money gram", "no experience needed",
+    "work from home", "earn per day", "weekly payment", "immediate joining",
+    "limited seats", "apply now", "no experience required", "training provided",
+    "earn $", "earn usd", "from comfort", "laptop and internet",
+    "guaranteed income", "be your own boss", "unlimited earning",
+    "part time earn", "data entry", "copy paste", "form filling"
+]
+
+def get_red_flags(title, company_profile, description, requirements,
+                  has_logo, has_questions, salary, text_length):
+    reasons = []
+    combined_lower = f"{title} {description} {requirements}".lower()
+
+    # Rule based structural checks
+    if has_logo == 0:
+        reasons.append("No company logo provided")
+    if len(company_profile.strip()) < 10:
+        reasons.append("Missing or very short company profile")
+    if salary.strip() == "":
+        reasons.append("Salary range not mentioned")
+    if has_questions == 0:
+        reasons.append("No screening questions asked")
+    if text_length < 200:
+        reasons.append("Job description is unusually short")
+
+    # Keyword checks
+    found_keywords = []
+    for kw in FRAUD_KEYWORDS:
+        if kw in combined_lower:
+            found_keywords.append(f'Suspicious phrase detected: "{kw}"'  )
+    reasons.extend(found_keywords[:2])
+
+    return reasons[:3]
 
 def predict(title, company_profile, description, requirements,
             has_logo, has_questions, salary):
@@ -35,34 +70,12 @@ def predict(title, company_profile, description, requirements,
     else:
         risk_label = "🔴 High Risk"
 
-    sv      = explainer.shap_values(X_new.toarray())[0]
-    top_idx = np.argsort(sv)[::-1][:10]
+    reasons = get_red_flags(
+        title, company_profile, description, requirements,
+        has_logo, has_questions, salary, text_length
+    )
 
-    plain_english = {
-        "has_company_logo"   : "No company logo provided",
-        "has_questions"      : "No screening questions asked",
-        "text_length"        : "Description is unusually short",
-        "has_salary"         : "Salary range not specified",
-        "has_company_profile": "Missing company profile",
-    }
-
-    reasons = []
-    for idx in top_idx:
-        if sv[idx] > 0:
-            fname = feature_names[idx]
-            label = plain_english.get(fname, f"Suspicious keyword: {fname}")
-            if label not in reasons:
-                reasons.append(label)
-        if len(reasons) == 3:
-            break
-
-    if len(reasons) < 2:
-        if has_logo == 0:   reasons.append("No company logo provided")
-        if has_salary == 0: reasons.append("Salary range not specified")
-        if has_company == 0:reasons.append("Missing company profile")
-        if text_length < 300: reasons.append("Description is unusually short")
-
-    return round(float(fraud_prob), 3), risk_label, reasons[:3]
+    return round(float(fraud_prob), 3), risk_label, reasons
 
 
 st.set_page_config(page_title="Fake Job Detector", page_icon="🕵️")
@@ -73,7 +86,7 @@ col1, col2 = st.columns(2)
 if col1.button("Try a Fake Listing"):
     st.session_state["title"]        = "Work From Home Data Entry - Earn $500/day"
     st.session_state["company"]      = ""
-    st.session_state["description"]  = "Easy work from home. No experience needed. Apply now. Immediate joining."
+    st.session_state["description"]  = "Easy work from home. No experience needed. Apply now. Immediate joining. Weekly payment via wire transfer."
     st.session_state["requirements"] = ""
     st.session_state["salary"]       = ""
     st.session_state["logo"]         = False
@@ -82,7 +95,7 @@ if col1.button("Try a Fake Listing"):
 if col2.button("Try a Real Listing"):
     st.session_state["title"]        = "Senior Software Engineer - Backend Python"
     st.session_state["company"]      = "Fintech startup based in Bangalore, Series B funded, 200+ employees."
-    st.session_state["description"]  = "Looking for backend engineer with 3+ years in Python, FastAPI, PostgreSQL."
+    st.session_state["description"]  = "Looking for backend engineer with 3+ years in Python, FastAPI, PostgreSQL. You will design microservices for our payments platform."
     st.session_state["requirements"] = "BSc Computer Science. Strong knowledge of REST APIs, SQL, AWS."
     st.session_state["salary"]       = "18-25 LPA"
     st.session_state["logo"]         = True
@@ -97,7 +110,7 @@ requirements = st.text_area("Requirements",      value=st.session_state.get("req
 salary       = st.text_input("Salary Range",     value=st.session_state.get("salary", ""))
 
 col3, col4   = st.columns(2)
-has_logo     = col3.checkbox("Has Company Logo",       value=st.session_state.get("logo", False))
+has_logo     = col3.checkbox("Has Company Logo",        value=st.session_state.get("logo", False))
 has_ques     = col4.checkbox("Has Screening Questions", value=st.session_state.get("questions", False))
 
 st.divider()
